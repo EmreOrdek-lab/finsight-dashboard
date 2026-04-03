@@ -1,16 +1,16 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from 'firebase/auth';
 
+// Values are injected at build time by CRA using REACT_APP_* variables
 const firebaseConfig = {
-  apiKey: 'AIzaSyDud-V_BGbC24w-D5-pk5N1TlhtAtL8UHY',
-  authDomain: 'financial-dashboard-17bd5.firebaseapp.com',
-  projectId: 'financial-dashboard-17bd5',
-  storageBucket: 'financial-dashboard-17bd5.appspot.com',
-  messagingSenderId: '377490810497',
-  appId: '1:377490810497:web:60267cba90fd1c122b0f80',
-  measurementId: 'G-MSHXHXKXVN'
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
 initializeApp(firebaseConfig);
 export const auth = getAuth();
