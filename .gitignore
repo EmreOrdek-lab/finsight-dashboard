@@ -6,6 +6,9 @@ build/
 dist/
 coverage/
 
+# Firebase local/hosting cache
+.firebase/
+
 # Env and local
 .env
 .env.*.local
