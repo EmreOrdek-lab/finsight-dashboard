@@ -5,8 +5,11 @@ import { auth } from '../../config/Firebase';
 import Button from '@mui/material/Button';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatMoney } from '../../utils/formatters';
 
 function Accounts(props) {
+    const { t, locale } = useLanguage();
     const [ user ] = useAuthState(auth);
     const actionButtonSx = {
         minWidth: 36,
@@ -66,15 +69,6 @@ function Accounts(props) {
         return sortedBaseArray;
     };
 
-    const formatMoney = (money) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(Number(money || 0));
-    };
-
     const getAccountTone = (account) => {
         return ((Number(account.total) > 0) || (!account.debit && Number(account.total) === 0)) ? 'text-emerald-600' : 'text-red-600';
     };
@@ -87,11 +81,11 @@ function Accounts(props) {
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <h3 className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-500">{account.name}</h3>
-                                    <h4 className="pt-1 text-[11px] font-medium text-slate-600 dark:text-zinc-400">{account.debit ? 'Debit account' : 'Credit facility'}</h4>
+                                    <h4 className="pt-1 text-[11px] font-medium text-slate-600 dark:text-zinc-400">{account.debit ? t('accounts.debitAccount') : t('accounts.creditFacility')}</h4>
                                 </div>
                                 <div className="text-right">
                                     <h5 data-testid={`account-total${index}`} className={`${getAccountTone(account)} text-sm font-semibold tabular-nums md:text-base`}>
-                                        {formatMoney(account.total)}
+                                        {formatMoney(account.total, 'USD', locale)}
                                     </h5>
                                 </div>
                             </div>

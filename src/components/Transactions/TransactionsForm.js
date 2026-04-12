@@ -9,8 +9,10 @@ import AddIcon from '@mui/icons-material/Add';
 import { getDatabase, ref, onValue, update } from "firebase/database";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../../config/Firebase';
+import { useLanguage } from '../../context/LanguageContext';
 
 function TransactionsForm(props) {
+    const { t } = useLanguage();
     const initialValues = { name: "", account: null, category: null, date: "", positive: false, value: "", id: Math.random()*1000 };
     const initialCategories = [
         {label: 'Personal', showInSpending: true},
@@ -48,7 +50,7 @@ function TransactionsForm(props) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const errors = validateTransaction(formValues, creditCardTotal);
+        const errors = validateTransaction(formValues, creditCardTotal, t);
         if(Object.keys(errors).length === 0){
             props.createTransaction(formValues);
             // Reset form and show success message
@@ -241,13 +243,13 @@ function TransactionsForm(props) {
         return(
             <div className='flex flex-col justify-center md:gap-3'>
                 <h4 className="font-medium text-slate-900 dark:text-slate-100 sm:text-base xl:text-lg">
-                    {props.editOn === false ? 'Create your transaction' : 'Edit your transaction'}
+                    {props.editOn === false ? t('transactions.create') : t('transactions.edit')}
                 </h4>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-1">
                     <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2 sm:gap-0.5 md:flex md:flex-col md:justify-center md:m-auto md:gap-3">
                         <TextField
                             id="filled-basic"
-                            label="Title"
+                            label={t('transactions.titleField')}
                             variant="outlined"
                             size="small"
                             data-testid="transactionsFormTitle"
@@ -268,7 +270,7 @@ function TransactionsForm(props) {
                             size="small"
                             options={allAccounts}
                             sx={props.inputStyles}
-                            renderInput={(params) => <TextField {...params} label="Account"
+                            renderInput={(params) => <TextField {...params} label={t('transactions.account')}
                                                         name="account"
                                                         error={formErrors?.account ? true : false}
                                                         helperText={formErrors?.account}
@@ -285,7 +287,7 @@ function TransactionsForm(props) {
                             id="combo-box-demo"
                             options={categories}
                             sx={props.inputStyles}
-                            renderInput={(params) => <TextField {...params} label="Category"
+                            renderInput={(params) => <TextField {...params} label={t('transactions.category')}
                                                         name="category"
                                                         error={formErrors?.category ? true : false}
                                                         helperText={formErrors?.category}
@@ -302,7 +304,7 @@ function TransactionsForm(props) {
                                 data-testid="transactionsFormTransfer"
                                 options={setTransferToAccounts()}
                                 sx={props.inputStyles}
-                                renderInput={(params) => <TextField {...params} label="Transfer To"
+                                renderInput={(params) => <TextField {...params} label={t('transactions.transferTo')}
                                                             name="category"
                                                             error={formErrors?.transferTo ? true : false}
                                                             helperText={formErrors?.transferTo}
@@ -315,7 +317,7 @@ function TransactionsForm(props) {
                             <div className="text-slate-900 dark:text-slate-100">{formValues?.positive ? <AddIcon/> : <RemoveIcon/> }</div>
                             <TextField
                                 id="filled-basic"
-                                label="Value"
+                                label={t('transactions.value')}
                                 variant="outlined"
                                 name="value"
                                 size="small"
@@ -331,7 +333,7 @@ function TransactionsForm(props) {
                         </div>
                         <TextField
                             id="filled-basic"
-                            label="Day of month"
+                            label={t('transactions.dayOfMonth')}
                             variant="outlined"
                             size="small"
                             name="date"
@@ -349,14 +351,14 @@ function TransactionsForm(props) {
                             size="small" 
                             onClick={() => giveId()}
                             data-testid="transactionsFormSubmit">
-                            {props.editOn === false ? 'Create' : 'Finalize' }
+                            {props.editOn === false ? t('common.create') : t('transactions.finalize')}
                         </Button>
                         <Button 
                             sx={props.buttonStyles} 
                             size="small" 
                             onClick={() => toSetFormOff()}
                             data-testid="transactionsFormClose">
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                     </div>
                 </form>
@@ -369,14 +371,14 @@ function TransactionsForm(props) {
             {props.formOn === true ? transactionForm() :
                 <div className="flex flex-col">
                     <div className="text-center font-medium text-slate-900 dark:text-slate-100">
-                        Edit, Delete or
+                        {t('transactions.editDeleteOr')}
                     </div>
                     <Button sx={props.buttonStyles}
                         data-testid='transactionsFormOpen'
                         onClick={() => {
                             renderAccounts();
                             toSetFormOn(true);
-                        }}>Create new transaction</Button>
+                        }}>{t('transactions.createNew')}</Button>
                 </div>
             }
         </article>

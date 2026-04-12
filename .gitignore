@@ -17,6 +17,15 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local verification artifacts
+.edge-overflow-profile/
+build-verify*/
+devserver.log
+
+# Python cache
+__pycache__/
+*.pyc
 pnpm-debug.log*
 
 # OS/Editor

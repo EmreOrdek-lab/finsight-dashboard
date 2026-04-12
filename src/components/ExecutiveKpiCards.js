@@ -14,7 +14,7 @@ function ExecutiveKpiCards(props) {
 
     return (
         <section id="executive-kpis" className="xl:col-span-12">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:gap-6 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:gap-6 xl:grid-cols-3 2xl:grid-cols-6">
                 {props.cards.map((card) => (
                     <article key={card.label} className="enterprise-panel flex min-h-[176px] flex-col justify-between p-5">
                         <div className="flex items-start justify-between gap-3">

@@ -4,8 +4,10 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import ErrorIcon from '@mui/icons-material/Error';
+import { useLanguage } from '../../context/LanguageContext';
 
 function Login(props) {
+    const { t } = useLanguage();
     const initialUserInfo ={ email: "", password: "" };
     const [ userInfo, setUserInfo ] = useState(initialUserInfo);
     const [ formErrors, setFormErrors] = useState({});
@@ -22,14 +24,14 @@ function Login(props) {
         const errors = {};
         // follows email format
         if( !values.email.includes('@') || !values.email.includes('.')){
-            errors.email = 'Must be a valid email';
+            errors.email = t('login.mustBeValidEmail');
         }
         if(!values.email){
-            errors.email = 'Email required';
+            errors.email = t('login.emailRequired');
         }
 
         if(!values.password){
-            errors.password = 'Password required';
+            errors.password = t('login.passwordRequired');
         }
         return errors;
     }
@@ -54,20 +56,20 @@ function Login(props) {
         .catch((error) => {
             const errorCode = error.code;
             if(errorCode === 'auth/user-not-found'){
-                setLoginError('Email not registered.');
+                setLoginError(t('login.emailNotRegistered'));
             } else if (errorCode === 'auth/wrong-password'){
-                setLoginError('Incorrect password.');
+                setLoginError(t('login.incorrectPassword'));
             }
         });
     };
 
     return (
         <div className="flex flex-col gap-2 sm:gap-1 md:m-auto">
-            <h2 className="text-lg text-slate-900 dark:text-slate-100">Sign In</h2>
+            <h2 className="text-lg text-slate-900 dark:text-slate-100">{t('login.signIn')}</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-1 md:w-full md:justify-center">
                 <TextField
                     id="filled-basic" 
-                    label="Email"
+                    label={t('login.email')}
                     variant="filled"
                     data-testid='cypress-email'
                     name="email"
@@ -80,7 +82,7 @@ function Login(props) {
                 />
                 <TextField
                     id="filled-basic" 
-                    label="Password" 
+                    label={t('login.password')} 
                     variant="filled"
                     data-testid='cypress-password'
                     size="small"
@@ -91,7 +93,7 @@ function Login(props) {
                     helperText={formErrors?.password}
                     sx={props.inputStyles}
                 />
-                <Button type="submit" sx={props.buttonStyles}>Login</Button>
+                <Button type="submit" sx={props.buttonStyles}>{t('login.login')}</Button>
                 {loginError && 
                     <div className="text-rose-600 flex gap-2 items-center justify-center">
                         <ErrorIcon sx={{ color:'red', fontSize: 20 }}/>

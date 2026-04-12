@@ -5,8 +5,10 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import { useLanguage } from '../context/LanguageContext';
 
 function EditDialogBox(props) {
+    const { t } = useLanguage();
     return (
         <div>
             <Dialog
@@ -41,12 +43,12 @@ function EditDialogBox(props) {
                     <Button 
                         sx={props.buttonStyles} 
                         onClick={props.toSetDialogBoxOff}
-                        data-testid='dialogContinue'>Continue editing</Button>
+                        data-testid='dialogContinue'>{t('common.continueEditing')}</Button>
                     <Button 
                         sx={props.buttonStyles} 
                         onClick={props.toSetDialogBoxOffAndClearGoal}
                         data-testid='dialogExit'>
-                        Exit anyway
+                        {t('common.exitAnyway')}
                     </Button>
                 </DialogActions>
             </Dialog>

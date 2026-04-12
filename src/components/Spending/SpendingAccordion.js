@@ -4,8 +4,11 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import Typography from '@mui/material/Typography';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatMoney } from '../../utils/formatters';
 
 function SpendingAccordion(props) {
+  const { locale } = useLanguage();
 
   // handles which accordion is active (or expanded)
   const handleChange = (index) => (e, newExpanded) => {
@@ -23,38 +26,6 @@ function SpendingAccordion(props) {
     color: props.theme === 'dark' ? '#f8fafc' : '#0f172a',
     border: `1px solid ${props.theme === 'dark' ? 'rgba(113,113,122,0.24)' : 'rgba(148,163,184,0.24)'}`
   }
-
-  const formatMoney = (money) => {
-    if(money){
-        let formattedMoney = money.toString().split('.');
-        let newMoney = [];
-        if(!formattedMoney[1]){
-          formattedMoney[1] = '00';
-        }
-        formattedMoney[1] = formattedMoney[1].slice(0, 2);
-        if(formattedMoney[0].length > 3){
-            let stringArray = formattedMoney[0].split('');
-            while(stringArray.length){
-                newMoney.push(stringArray[0]);
-                stringArray.shift();
-                if(stringArray.length % 3 === 0 && stringArray.length !== 0){
-                    newMoney.push(',');
-                }
-            }
-            newMoney.join('');
-        } else {
-          if(formattedMoney[1]){
-            return formattedMoney[0] + '.' + formattedMoney[1];
-          }
-          return formattedMoney[0] + '.00';
-        }
-        if(formattedMoney[1]){
-          return (newMoney.join('') + '.' + formattedMoney[1]);
-        }
-        return newMoney.join('') + '.00';
-    }
-    return '0.00';
-}
 
   return(
       props.formattedTransactions.map((value, index) => {
@@ -105,7 +76,7 @@ function SpendingAccordion(props) {
                     fontWeight: 600,
                     justifySelf: 'flex-end',
                   }}>
-                  ${formatMoney(value.value)}
+                  {formatMoney(value.value, 'USD', locale)}
                 </Typography>
               </AccordionSummary>
               <AccordionDetails 
@@ -120,7 +91,7 @@ function SpendingAccordion(props) {
                           sx={{textAlign:"left", flexBasis: '50%'}}>{filteredTransaction.name}</Typography>
                         <Typography
                           data-testid={`spendingAccordionTypographyMoney${index}`}
-                          sx={{textAlign:"right", flexBasis: '50%'}}>${formatMoney(filteredTransaction.value)}</Typography>
+                          sx={{textAlign:"right", flexBasis: '50%'}}>{formatMoney(filteredTransaction.value, 'USD', locale)}</Typography>
                       </div>
                     )
                   })

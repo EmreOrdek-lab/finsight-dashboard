@@ -6,8 +6,11 @@ import { getDatabase, ref, update } from "firebase/database";
 import Button from '@mui/material/Button';
 import capitalizeName from '../capitalizeName';
 import ErrorIcon from '@mui/icons-material/Error';
+import { DEFAULT_BUDGET_TEMPLATES } from '../../services/workspaceGovernanceService';
+import { useLanguage } from '../../context/LanguageContext';
 
 function Register(props) {
+    const { t } = useLanguage();
     const initialUserInfo = {name: "", email: "", password:""};
     const [ userInfo, setUserInfo ] = useState(initialUserInfo);
     const [ formErrors, setFormErrors] = useState({});
@@ -23,20 +26,20 @@ function Register(props) {
     const validate = (values) => {
         const errors = {};
         if(!values.name){
-            errors.name = 'Name required';
+            errors.name = t('register.nameRequired');
         }
         // follow email format
         if(!values.email.includes('@') || !values.email.includes('.')){
-            errors.email = 'Must be a valid email';
+            errors.email = t('register.mustBeValidEmail');
         }
         if(!values.email){
-            errors.email = 'Email required';
+            errors.email = t('register.emailRequired');
         }
         if(values.password.length < 6 ){
-            errors.password = 'Password must be at least 6 characters';
+            errors.password = t('register.passwordMin');
         }
         if(!values.password){
-            errors.password = 'Password required';
+            errors.password = t('register.passwordRequired');
         }
         return errors;
     };
@@ -72,6 +75,22 @@ function Register(props) {
             const accountsRef = ref(db, user.uid + '/accounts');
             update(accountsRef, newUserAccounts);
 
+            const defaultBudgets = DEFAULT_BUDGET_TEMPLATES.reduce((acc, budget) => {
+                const key = budget.category.toLowerCase().replace(/\s+/g, '-');
+                acc[key] = {
+                    id: `budget-${key}`,
+                    category: budget.category,
+                    planned: budget.planned,
+                    owner: budget.owner,
+                    criticality: budget.criticality,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                };
+                return acc;
+            }, {});
+            const budgetsRef = ref(db, user.uid + '/budgets');
+            update(budgetsRef, defaultBudgets);
+
             const getInitials = (name) => {
                 var initials = [];
                 initials.push(name[0].toUpperCase());
@@ -86,6 +105,8 @@ function Register(props) {
             const userData = {
                 name: `${capitalizeName(userInfo.name)}`,
                 initials: getInitials(userInfo.name),
+                role: 'admin',
+                activeRole: 'admin',
             }
             const userDataRef = ref(db, user.uid + '/userData');
             update(userDataRef, userData);
@@ -93,18 +114,18 @@ function Register(props) {
         .catch((error) => {
             const errorCode = error.code;
             if(errorCode === 'auth/email-already-in-use'){
-                setLoginError('Email already in use.');
+                setLoginError(t('register.emailInUse'));
             }
         })
     };
 
     return (
         <div className="flex flex-col gap-2 sm:gap-0.5 md:m-auto">
-            <h2 className="text-lg text-slate-900 dark:text-slate-100">Register an account</h2>
+            <h2 className="text-lg text-slate-900 dark:text-slate-100">{t('register.title')}</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-1 md:w-full md:justify-center">
                 <TextField
                     id="filled-basic" 
-                    label="Name" 
+                    label={t('register.name')} 
                     variant="filled" 
                     name="name"
                     data-testid='cypress-registername'
@@ -117,7 +138,7 @@ function Register(props) {
                 />
                 <TextField
                     id="filled-basic" 
-                    label="Email"
+                    label={t('register.email')}
                     variant="filled"
                     name="email"
                     data-testid='cypress-registeremail'
@@ -130,7 +151,7 @@ function Register(props) {
                 />
                 <TextField
                     id="filled-basic" 
-                    label="Password" 
+                    label={t('register.password')} 
                     variant="filled"
                     data-testid='cypress-registerpassword'
                     size="small"
@@ -144,7 +165,7 @@ function Register(props) {
                 <Button type="submit" 
                     sx={props.buttonStyles}
                     data-testid='cypress-register'
-                >Register</Button>
+                >{t('register.register')}</Button>
                 {loginError && 
                     <div className="text-rose-600 flex gap-2 items-center justify-center">
                         <ErrorIcon sx={{ color:'red', fontSize: 20 }}/>

@@ -4,8 +4,11 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../../config/Firebase';
 import SpendingGraph from './SpendingGraph';
 import SpendingAccordion from './SpendingAccordion';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatMoney } from '../../utils/formatters';
 
 function SpendingModal(props) {
+    const { t, locale } = useLanguage();
     const [ user ] = useAuthState(auth);
     const [ allTransactions, setAllTransactions ] = useState([]);
     const [ formattedTransactions, setFormattedTransactions ] = useState([]);
@@ -76,37 +79,14 @@ function SpendingModal(props) {
         allTransactions.forEach((transaction) => {
             total += transaction.value;
         })
-
-        let formattedMoney;
-        if(total > 0){
-            formattedMoney = total.toString().split('.');
-        } else {
-            formattedMoney = (total * -1).toString().split('.');
-        }
-        
-        let newMoney = [];
-        let stringArray = formattedMoney[0].split('');
-        while(stringArray.length){
-            newMoney.push(stringArray[0]);
-            stringArray.shift();
-            if(stringArray.length % 3 === 0 && stringArray.length !== 0){
-                newMoney.push(',');
-            }
-        }
-        newMoney.join('');
-        if(!formattedMoney[1]){
-            newMoney.push('.00');
-        } else {
-            newMoney.push('.' + formattedMoney[1]);
-        }
-        return newMoney.join('');
+        return formatMoney(Math.abs(total), 'USD', locale);
     }
 
     return (
         <section id="spending" className="enterprise-panel order-4 flex h-full min-h-0 flex-col gap-4 overflow-hidden bg-slate-900/50 p-6 shadow-xl xl:col-span-5 xl:col-start-8 xl:row-span-2 xl:row-start-1 xl:w-full">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Spending per category</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('spending.title')}</h2>
             {allTransactions.length === 0 ? 
-                    <h3 className="text-center text-slate-600 dark:text-zinc-400">Add transactions to see your spending chart</h3> 
+                    <h3 className="text-center text-slate-600 dark:text-zinc-400">{t('spending.empty')}</h3> 
             :
                 <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
                     <div className="w-full shrink-0">
@@ -119,8 +99,8 @@ function SpendingModal(props) {
                     </div>
                     <div className="w-full shrink-0">
                         <div className="flex items-center justify-between gap-4 pb-2 md:w-10/12 md:m-auto lg:w-11/12">
-                            <h3 className="text-xl text-slate-900 dark:text-slate-100">Categories</h3>
-                            <h3 data-testid="spendingTotal" className="text-right text-xl font-medium text-slate-900 dark:text-slate-100">{`$${transactionsTotal()} total`}</h3>
+                            <h3 className="text-xl text-slate-900 dark:text-slate-100">{t('spending.categories')}</h3>
+                            <h3 data-testid="spendingTotal" className="text-right text-xl font-medium text-slate-900 dark:text-slate-100">{`${transactionsTotal()} ${t('spending.totalSuffix')}`}</h3>
                         </div>
                         <div className='w-full px-2'>
                             <SpendingAccordion

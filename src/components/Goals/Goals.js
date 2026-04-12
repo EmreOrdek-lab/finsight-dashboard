@@ -6,8 +6,10 @@ import Button from '@mui/material/Button';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import LinearProgress from '@mui/material/LinearProgress';
+import { useLanguage } from '../../context/LanguageContext';
 
 function Goals(props) {
+    const { t } = useLanguage();
     const [ user ] = useAuthState(auth);
     const [ count, setCount ] = useState(0);
     const actionButtonSx = {
@@ -178,7 +180,7 @@ function Goals(props) {
                 
             // case for 0 transactions
             default:
-                return <div className='m-auto p-3 text-center font-medium text-slate-600 dark:text-zinc-400'>Goal list empty{!props.modalOn && ', add a goal in Manage Goals'}</div>;
+                return <div className='m-auto p-3 text-center font-medium text-slate-600 dark:text-zinc-400'>{`${t('goals.empty')}${!props.modalOn ? `, ${t('goals.emptyHint')}` : ''}`}</div>;
         }
     };
 

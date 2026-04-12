@@ -9,8 +9,11 @@ import EditDialogBox from '../EditDialogBox';
 import SuccessSnackbar from '../SuccessSnackbar';
 import ErrorSnackbar from '../ErrorSnackbar';
 import DeleteSnackbar from '../DeleteSnackbar';
+import { appendAuditEntry } from '../../services/auditService';
+import { useLanguage } from '../../context/LanguageContext';
 
 function GoalsModal(props) {
+    const { t } = useLanguage();
     const [ user ] = useAuthState(auth);
     // Represents all goals, read from database
     const [ allGoals, setAllGoals ] = useState([]);
@@ -24,6 +27,7 @@ function GoalsModal(props) {
     const [ deleteSnackbarOn, setDeleteSnackbarOn ] = useState(false);
     const [ dialogBoxOn, setDialogBoxOn ] = useState(false);
     const [ exitWithCancelOn, setExitWithCancelOn ] = useState(false);
+    const canManageGoals = props.permissions?.manageGoals;
     
     const toSetFormOn = () => {
         setFormOn(true);
@@ -35,11 +39,14 @@ function GoalsModal(props) {
     };
 
     const toSetModalOn = () => {
+        if(!canManageGoals){
+            return;
+        }
         setModalOn(true);
         window.scroll(0, 0);
         const body = document.querySelector("body");
         body.style.overflow = "hidden";
-    }
+    };
 
     const toSetModalOff = () => {
         setExitWithCancelOn(false);
@@ -122,6 +129,9 @@ function GoalsModal(props) {
     };
 
     const createGoal = (cleanFormValues) =>{
+        if(!canManageGoals){
+            return;
+        }
         const db = getDatabase();
         const postListRef = ref(db, user.uid + '/goals');
         const newPostRef = push(postListRef);
@@ -130,6 +140,14 @@ function GoalsModal(props) {
         })
         .then(() => {
             setSuccessSnackbarOn(true);
+            appendAuditEntry(user.uid, {
+                action: editOn ? 'updated' : 'created',
+                domain: 'goals',
+                entityType: 'goal',
+                actorRole: props.baseRole,
+                summary: `${cleanFormValues.name} goal ${editOn ? 'updated' : 'created'}.`,
+                severity: 'info',
+            });
         })
         .catch(() => {
             setErrorSnackbarOn(true);
@@ -138,6 +156,9 @@ function GoalsModal(props) {
     };
 
     const deleteGoal = (goalToDelete, index, editOnTrue) => {
+        if(!canManageGoals){
+            return;
+        }
         const idToDel = goalToDelete.id;
         const db = getDatabase();
         const dbRef = ref(db, user.uid + '/goals');
@@ -153,6 +174,14 @@ function GoalsModal(props) {
                     .then(() => {
                         if(!editOnTrue){
                             setDeleteSnackbarOn(true);
+                            appendAuditEntry(user.uid, {
+                                action: 'deleted',
+                                domain: 'goals',
+                                entityType: 'goal',
+                                actorRole: props.baseRole,
+                                summary: `${goalToDelete.name} goal removed.`,
+                                severity: 'warning',
+                            });
                         }
                     })
                     .catch(() => {
@@ -168,15 +197,21 @@ function GoalsModal(props) {
             <div className="enterprise-panel -mt-4 flex h-full w-full flex-col gap-3 bg-slate-900/50 p-6 shadow-xl">
                 <header className="flex justify-between">
                     <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                        Goals
+                        {t('goals.title')}
                     </h2>
                     <Button onClick={() => toSetModalOn()} 
                         sx={props.buttonStyles} 
+                        disabled={!canManageGoals}
                         tabIndex={props.showNav || modalOn ? -1 : 0}
                         data-testid='goalsModalOpen'>
-                        Manage Goals
+                        {t('goals.manage')}
                     </Button>
                 </header>
+                {!canManageGoals && (
+                    <div className="text-sm text-slate-600 dark:text-zinc-400">
+                        {t('goals.readOnly')}
+                    </div>
+                )}
                 <Goals 
                     allGoals={allGoals}
                     toSetAllGoals={toSetAllGoals}
@@ -185,15 +220,15 @@ function GoalsModal(props) {
             {modalOn &&
             <div className='enterprise-overlay fixed inset-0 z-50 flex flex-col items-center justify-center p-3'>
                 <DeleteSnackbar
-                    message='Goal deleted.'
+                    message={t('goals.deleted')}
                     deleteSnackbarOn={deleteSnackbarOn}
                     toSetDeleteSnackbarOff={toSetDeleteSnackbarOff}/>
                 <ErrorSnackbar
-                    message='Error with goal.'
+                    message={t('goals.error')}
                     errorSnackbarOn={errorSnackbarOn}
                     toSetErrorSnackbarOff={toSetErrorSnackbarOff}/>
                 <SuccessSnackbar 
-                    message='Goal created!'
+                    message={t('goals.created')}
                     successSnackbarOn={successSnackbarOn} 
                     toSetSuccessSnackbarOff={toSetSuccessSnackbarOff}/>
                 <EditDialogBox 
@@ -202,16 +237,16 @@ function GoalsModal(props) {
                     dialogBoxOn={dialogBoxOn}
                     toSetDialogBoxOff={toSetDialogBoxOff} 
                     toSetDialogBoxOffAndClearGoal={exitWithCancelOn ? exitDialogWithCancel : exitDialogWithX} 
-                    dialogTitle="Exit while editing your goal?"
-                    dialogText="Exiting now will cause the goal you are editing to be lost."/>
+                    dialogTitle={t('goals.exitWhileEditing')}
+                    dialogText={t('goals.exitWhileEditingText')}/>
                 <article className="enterprise-modal-panel h-[30rem] w-full p-4 md:w-10/12 md:max-h-[60%] lg:max-h-[80%] xl:max-h-[80%] xl:max-w-[50%]">
                     <header className="flex justify-between">
-                        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Goals</h3>
+                        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('goals.title')}</h3>
                         <Button onClick={() => toSetModalOff()} 
                             sx={props.buttonStyles} 
                             size='small'
                             data-testid="goalsModalClose">
-                            Exit
+                            {t('common.exit')}
                         </Button>
                     </header>
                     <div className="flex flex-col gap-2 sm:gap-1 xl:gap-5">

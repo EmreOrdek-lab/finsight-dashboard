@@ -8,13 +8,13 @@ It combines a simple personal-finance data model with an enterprise-style interf
 
 <p align="center">
   <img src="./public/dashboard.png" width="900" alt="FinSight Dashboard View">
-  <br/>
+<br/>
 </p>
 
 <p align="center">
   <img src="./public/login.png" width="420" alt="Login Screen">
   <img src="./public/dashboard2.png" width="420" alt="Secondary Dashboard View">
-  <br/>
+<br/>
 </p>
 
 ## What This Project Does
@@ -40,6 +40,10 @@ In short, this project turns raw financial activity into an interactive dashboar
 - Transaction creation, editing, deletion, and account balance reflection
 - Spending breakdown by category
 - Analytics section for cashflow, net worth, and insight messaging
+- Budget vs actual governance panel with variance tracking
+- Role-aware workspace controls for admin, analyst, and viewer modes
+- Audit log timeline for traceable create, update, delete, and access events
+- Optional FastAPI analytics API for server-side summary computation
 - Dark and light theme support
 - Responsive layout for desktop and mobile usage
 
@@ -58,6 +62,7 @@ The application is a React single-page app created with `react-scripts`.
 
 - `Firebase Authentication` handles login and registration
 - `Firebase Realtime Database` stores user-scoped data under each authenticated user's UID
+- Optional `FastAPI` service can compute executive summaries server-side when `REACT_APP_ANALYTICS_API_URL` is configured
 
 ### Data Model
 
@@ -75,6 +80,9 @@ The dashboard reads that branch once authenticated and derives summaries such as
 - net liquidity
 - savings efficiency
 - month-end forecast
+- budget adherence
+- liquidity runway
+- goals at risk
 
 ## Project Structure
 
@@ -100,6 +108,12 @@ Key application areas:
 
 - `src/config/Firebase.js`  
   Firebase app initialization and auth setup
+
+- `src/utils/financialSummary.js`  
+  Shared KPI, budget variance, and governance summary calculations
+
+- `backend/app/main.py`  
+  Optional FastAPI analytics endpoint for server-side summary generation
 
 ## How It Works
 
@@ -180,6 +194,8 @@ That positioning gives the app a more professional and executive-facing identity
 - The project currently uses Firebase directly from the frontend.
 - User data is scoped by authenticated UID.
 - Analytics are calculated client-side from stored transactional data.
+- Governance bootstrap provisions default roles and category budgets for new workspaces.
+- Audit events are written for account, goal, transaction, budget, and access changes.
 - A live Firebase project configuration is present in the app configuration.
 
 ## Author
@@ -187,4 +203,3 @@ That positioning gives the app a more professional and executive-facing identity
 Emre Ördek
 
 ## Screenshots
-

@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import Login from './Login';
 import Register from './Register';
+import LanguageToggle from '../LanguageToggle';
+import { useLanguage } from '../../context/LanguageContext';
 
 function LoginPage(props) {
+    const { t } = useLanguage();
     const [register, setRegister] = useState(false);
 
     const inputLoginStyles = {
@@ -20,30 +23,33 @@ function LoginPage(props) {
     return (
         <main className='enterprise-auth-shell flex min-h-screen flex-col justify-center gap-8 px-5 py-8 md:grid md:grid-cols-[1.15fr_0.85fr] md:px-8 lg:px-16'>
             <section className="mx-auto flex w-full max-w-2xl flex-col justify-center gap-6">
+                <div className="flex justify-end">
+                    <LanguageToggle buttonStyles={props.buttonStyles}/>
+                </div>
                 <div className="flex w-fit items-center gap-3 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-400">
                     <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                    FinSight Platform
+                    {t('loginPage.platform')}
                 </div>
                 <div className="flex flex-col gap-4">
                     <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 md:text-5xl">
-                        FinSight Financial Analytics & GRC command center
+                        {t('loginPage.title')}
                     </h1>
                     <p className="max-w-xl text-base leading-7 text-slate-600 dark:text-zinc-400">
-                        Govern spending, monitor controls, and consolidate financial visibility in a single FinSight enterprise workspace.
+                        {t('loginPage.description')}
                     </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                     <div className="enterprise-panel p-4">
-                        <div className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">Visibility</div>
-                        <div className="pt-2 text-sm font-medium text-slate-900 dark:text-slate-100">Accounts, goals and transactions aligned in one view.</div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">{t('loginPage.visibility')}</div>
+                        <div className="pt-2 text-sm font-medium text-slate-900 dark:text-slate-100">{t('loginPage.visibilityDetail')}</div>
                     </div>
                     <div className="enterprise-panel p-4">
-                        <div className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">Controls</div>
-                        <div className="pt-2 text-sm font-medium text-slate-900 dark:text-slate-100">Enterprise-grade dark and light workspaces.</div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">{t('loginPage.controls')}</div>
+                        <div className="pt-2 text-sm font-medium text-slate-900 dark:text-slate-100">{t('loginPage.controlsDetail')}</div>
                     </div>
                     <div className="enterprise-panel p-4">
-                        <div className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">Insights</div>
-                        <div className="pt-2 text-sm font-medium text-slate-900 dark:text-slate-100">Operational charts for category and cashflow tracking.</div>
+                        <div className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">{t('loginPage.insights')}</div>
+                        <div className="pt-2 text-sm font-medium text-slate-900 dark:text-slate-100">{t('loginPage.insightsDetail')}</div>
                     </div>
                 </div>
             </section>
@@ -52,10 +58,10 @@ function LoginPage(props) {
                     <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4 dark:border-zinc-800">
                         <div>
                             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-zinc-500">
-                                Secure Access
+                                {t('loginPage.secureAccess')}
                             </div>
                             <h2 className="pt-2 text-2xl font-semibold text-slate-950 dark:text-slate-50">
-                                {register ? 'Create workspace access' : 'Sign in to FinSight'}
+                                {register ? t('loginPage.createWorkspaceAccess') : t('loginPage.signInToFinSight')}
                             </h2>
                         </div>
                     </div>
@@ -63,22 +69,22 @@ function LoginPage(props) {
                         <div className="flex flex-col gap-5 justify-center items-center">
                             <Register buttonStyles={props.buttonStyles} inputStyles={inputLoginStyles}/>
                             <div className="flex flex-row gap-3 items-center justify-center">
-                                <h3 className="text-center text-sm text-slate-600 dark:text-zinc-400">Already have an account?</h3>
+                                <h3 className="text-center text-sm text-slate-600 dark:text-zinc-400">{t('loginPage.alreadyHaveAccount')}</h3>
                                 <Button onClick={() => setRegister(false)}
                                     size="small"
                                     data-testid="cypress-tologin"
-                                    sx={props.buttonStyles}>Login</Button>
+                                    sx={props.buttonStyles}>{t('login.login')}</Button>
                             </div>
                         </div>
                         :
                         <div className="flex flex-col gap-5">
                             <Login buttonStyles={props.buttonStyles} inputStyles={inputLoginStyles}/>
                             <div className="flex flex-row gap-3 items-center justify-center">
-                                <h3 className="text-center text-sm text-slate-600 dark:text-zinc-400">Need a new account?</h3>
+                                <h3 className="text-center text-sm text-slate-600 dark:text-zinc-400">{t('loginPage.needNewAccount')}</h3>
                                 <Button sx={props.buttonStyles}
                                     size="small"
                                     data-testid="cypress-toregister"
-                                    onClick={() => setRegister(true)}>Register</Button>
+                                    onClick={() => setRegister(true)}>{t('register.register')}</Button>
                             </div>
                         </div>
                     }

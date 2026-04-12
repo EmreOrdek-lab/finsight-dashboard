@@ -9,8 +9,11 @@ import EditDialogBox from '../EditDialogBox';
 import SuccessSnackbar from '../SuccessSnackbar';
 import ErrorSnackbar from '../ErrorSnackbar';
 import DeleteSnackbar from '../DeleteSnackbar';
+import { appendAuditEntry } from '../../services/auditService';
+import { useLanguage } from '../../context/LanguageContext';
 
 function AccountsModal(props) {
+    const { t } = useLanguage();
     const [ user ] = useAuthState(auth);
     // Represents all Accounts, read from database
     const [ allAccounts, setAllAccounts ] = useState([]);
@@ -24,6 +27,7 @@ function AccountsModal(props) {
     const [ deleteSnackbarOn, setDeleteSnackbarOn ] = useState(false);
     const [ dialogBoxOn, setDialogBoxOn ] = useState(false);
     const [ exitWithCancelOn, setExitWithCancelOn ] = useState(false);
+    const canManageAccounts = props.permissions?.manageAccounts;
 
     const toSetFormOn = () => {
         setFormOn(true);
@@ -35,10 +39,13 @@ function AccountsModal(props) {
     };
 
     const toSetModalOn = () => {
+        if(!canManageAccounts){
+            return;
+        }
         setModalOn(true);
         const body = document.querySelector("body");
         body.style.overflow = "hidden";
-    }
+    };
 
     const toSetModalOff = () => {
         setExitWithCancelOn(false);
@@ -120,6 +127,9 @@ function AccountsModal(props) {
     };
 
     const createAccount = (cleanFormValues) =>{
+        if(!canManageAccounts){
+            return;
+        }
         const db = getDatabase();
         const postListRef = ref(db, user.uid + '/accounts');
         const newPostRef = push(postListRef);
@@ -128,6 +138,14 @@ function AccountsModal(props) {
         })
         .then(() => {
             setSuccessSnackbarOn(true);
+            appendAuditEntry(user.uid, {
+                action: editOn ? 'updated' : 'created',
+                domain: 'accounts',
+                entityType: 'account',
+                actorRole: props.baseRole,
+                summary: `${cleanFormValues.name} account ${editOn ? 'updated' : 'created'}.`,
+                severity: 'info',
+            });
         })
         .catch(() => {
             setErrorSnackbarOn(true);
@@ -136,6 +154,9 @@ function AccountsModal(props) {
     };
 
     const deleteAccount = (accountToDelete, index, editOnTrue) => {
+        if(!canManageAccounts){
+            return;
+        }
         const idToDel = accountToDelete.id;
         const db = getDatabase();
         const dbRef = ref(db, user.uid + '/accounts');
@@ -151,6 +172,14 @@ function AccountsModal(props) {
                     .then(() => {
                         if(!editOnTrue){
                             setDeleteSnackbarOn(true);
+                            appendAuditEntry(user.uid, {
+                                action: 'deleted',
+                                domain: 'accounts',
+                                entityType: 'account',
+                                actorRole: props.baseRole,
+                                summary: `${accountToDelete.name} account removed.`,
+                                severity: 'warning',
+                            });
                         }
                     })
                     .catch(() => {
@@ -167,17 +196,23 @@ function AccountsModal(props) {
             <div className="enterprise-panel flex h-80 min-h-0 w-full flex-col gap-3 overflow-hidden bg-slate-900/50 p-6 shadow-xl xl:h-full xl:max-h-[600px]">
                 <header className="flex justify-between">
                     <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                        Accounts
+                        {t('accounts.title')}
                     </h2>
                     <Button sx={props.buttonStyles} 
                         aria-expanded={modalOn ? 'true' : 'false'} 
                         onClick={() => toSetModalOn()} 
                         variant='contained'
+                        disabled={!canManageAccounts}
                         tabIndex={props.showNav || modalOn ? -1 : 0}
                         data-testid="accountsModalOpen">
-                        Manage Accounts
+                        {t('accounts.manage')}
                     </Button>
                 </header>
+                {!canManageAccounts && (
+                    <div className="text-sm text-slate-600 dark:text-zinc-400">
+                        {t('accounts.readOnly')}
+                    </div>
+                )}
                 <Accounts
                     allAccounts={allAccounts}
                     toSetAllAccounts={toSetAllAccounts}
@@ -186,15 +221,15 @@ function AccountsModal(props) {
             { modalOn && 
             <div className='enterprise-overlay fixed inset-0 z-50 flex flex-col items-center justify-center p-3'>
                 <DeleteSnackbar
-                    message='Account deleted'
+                    message={t('accounts.deleted')}
                     deleteSnackbarOn={deleteSnackbarOn}
                     toSetDeleteSnackbarOff={toSetDeleteSnackbarOff}/>
                 <ErrorSnackbar
-                    message='Error creating account'
+                    message={t('accounts.createError')}
                     errorSnackbarOn={errorSnackbarOn}
                     toSetErrorSnackbarOff={toSetErrorSnackbarOff}/>
                 <SuccessSnackbar 
-                    message='Account created!'
+                    message={t('accounts.created')}
                     successSnackbarOn={successSnackbarOn} 
                     toSetSuccessSnackbarOff={toSetSuccessSnackbarOff}/>
                 <EditDialogBox 
@@ -203,15 +238,15 @@ function AccountsModal(props) {
                     dialogBoxOn={dialogBoxOn}
                     toSetDialogBoxOff={toSetDialogBoxOff} 
                     toSetDialogBoxOffAndClearGoal={exitWithCancelOn ? exitDialogWithCancel : exitDialogWithX} 
-                    dialogTitle="Exit while editing your account?"
-                    dialogText="Exiting now will cause the account you are editing to be lost."/>
+                    dialogTitle={t('accounts.exitWhileEditing')}
+                    dialogText={t('accounts.exitWhileEditingText')}/>
                 <article className='enterprise-modal-panel container h-4/6 w-full max-h-96 p-4 sm:m-auto sm:h-[90vh] md:w-10/12 md:max-h-[60%] xl:flex xl:max-w-[50%] xl:flex-col'>
                     <header className="flex justify-between">
-                        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Accounts</h2>
+                        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('accounts.title')}</h2>
                         <Button sx={props.buttonStyles} 
                             onClick={() => toSetModalOff()} 
                             data-testid="accountsModalClose">
-                            Exit
+                            {t('common.exit')}
                         </Button>
                     </header>
                     <div className="flex gap-2 flex-col mt-2 h-5/6 justify-center sm:gap-3 xl:flex-row xl:w-11/12 xl:m-auto xl:gap-10">

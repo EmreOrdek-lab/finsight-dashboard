@@ -3,8 +3,10 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import validateGoal from './validateGoal';
 import capitalizeName from '../capitalizeName';
+import { useLanguage } from '../../context/LanguageContext';
 
 function GoalsForm(props) {
+    const { t } = useLanguage();
     const initialValues = { name: "", current: '', total: '', id: Math.random()*1000 };
     const [ formValues, setFormValues ] = useState(initialValues);
     const [ formErrors, setFormErrors ] = useState(null);
@@ -35,7 +37,7 @@ function GoalsForm(props) {
     const handleSubmit = (e) =>{
         e.preventDefault();
         // capture any unacceptable answers from form input
-        const errors = validateGoal(formValues);
+        const errors = validateGoal(formValues, t);
         // if there are no errors in error object send to database and clear form & set focus to first input box
         if(Object.keys(errors).length === 0){
             props.createGoal(formValues);
@@ -129,12 +131,12 @@ function GoalsForm(props) {
         return(
             <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:gap-1 md:gap-5 xl:gap-3">
                 <h4 className="m-atuo text-center text-base font-medium text-slate-900 dark:text-slate-100">
-                    {props.editOn === false ? 'Create your goal' : 'Edit your goal' }
+                    {props.editOn === false ? t('goals.create') : t('goals.edit')}
                 </h4>
                 <div className="flex flex-col gap-2 sm:flex-row sm:pr-12 md:flex-col md:pr-0 md:gap-5">
                     <TextField 
                         id="filled-basic" 
-                        label="Goal name" 
+                        label={t('goals.goalName')} 
                         variant="filled" 
                         name="name"
                         data-testid="goalsFormName"
@@ -148,7 +150,7 @@ function GoalsForm(props) {
                     <div className="flex gap-2 justify-center sm:gap-10 md:gap-5 lg:gap-5">
                         <TextField 
                             id="filled-basic" 
-                            label="Current amount" 
+                            label={t('goals.currentAmount')} 
                             variant="filled"
                             data-testid="goalsFormCurrent"
                             size="small"
@@ -161,7 +163,7 @@ function GoalsForm(props) {
                             helperText={formErrors?.current}/>
                         <TextField 
                             id="filled-basic" 
-                            label="Total amount" 
+                            label={t('goals.totalAmount')} 
                             variant="filled"
                             size="small"
                             data-testid="goalsFormTotal"
@@ -179,12 +181,12 @@ function GoalsForm(props) {
                         type="submit" 
                         onClick={() => giveId()}
                         data-testid="goalsFormSubmit">
-                        {props.editOn === false ? 'Create' : 'Finalize Edits' }
+                        {props.editOn === false ? t('common.create') : t('goals.finalizeEdits')}
                     </Button>
                     <Button sx={props.buttonStyles} 
                         onClick={() => toSetFormOff()}
                         data-testid="goalsFormClose">
-                        Cancel
+                        {t('common.cancel')}
                     </Button>
                 </div>
             </form>
@@ -196,12 +198,12 @@ function GoalsForm(props) {
             {props.formOn === true ? goalForm() : 
                 <div className="w-full flex justify-center gap-2">
                     <div className="font-medium text-slate-900 dark:text-slate-100">
-                        Edit, Delete or
+                        {t('goals.editDeleteOr')}
                     </div>
                     <Button sx={props.buttonStyles} 
                         onClick={() => toSetFormOn()}
                         data-testid="goalsFormOpen">
-                        Create new goal +
+                        {t('goals.createNew')}
                     </Button>
                 </div>
             }

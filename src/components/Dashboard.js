@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '../config/Firebase';
 import LoginPage from './Login/LoginPage';
@@ -10,19 +10,37 @@ import AnalyticsModal from './Analytics/AnalyticsModal';
 import TransactionsModal from './Transactions/TransactionsModal';
 import GoalsModal from './Goals/GoalsModal';
 import ExecutiveKpiCards from './ExecutiveKpiCards';
+import BudgetPerformancePanel from './BudgetPerformancePanel';
+import AccessControlPanel from './AccessControlPanel';
+import AuditLogPanel from './AuditLogPanel';
 import IconButton from '@mui/material/IconButton';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import LoadingScreen from './LoadingScreen';
+import { buildFinancialSummary } from '../utils/financialSummary';
+import { analyticsApiEnabled, fetchWorkspaceSummary } from '../services/backendApi';
+import { ensureWorkspaceGovernance } from '../services/workspaceGovernanceService';
+import { formatPercent } from '../utils/formatters';
+import { getNormalizedRole, getPermissionMap } from '../utils/permissions';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from './LanguageToggle';
+import { getRoleKey, getSummarySourceKey } from '../i18n/helpers';
  
 function Dashboard() {
+    const { t, locale } = useLanguage();
     const [ theme, setTheme ] = useState('dark');
     const [ showNav, setShowNav ] = useState(false);
     const [ user, loading ] = useAuthState(auth);
     const [ userData, setUserData ] = useState({});
     const [ accounts, setAccounts ] = useState([]);
     const [ transactions, setTransactions ] = useState([]);
+    const [ goals, setGoals ] = useState([]);
+    const [ budgets, setBudgets ] = useState([]);
+    const [ auditEntries, setAuditEntries ] = useState([]);
+    const [ remoteSummary, setRemoteSummary ] = useState(null);
+    const [ summarySource, setSummarySource ] = useState('Client-derived');
+    const governanceBootstrapRef = useRef(false);
 
     useEffect(() => {
         // specifies dark or light mode for tailwind
@@ -38,6 +56,12 @@ function Dashboard() {
             setUserData({});
             setAccounts([]);
             setTransactions([]);
+            setGoals([]);
+            setBudgets([]);
+            setAuditEntries([]);
+            setRemoteSummary(null);
+            setSummarySource('Client-derived');
+            governanceBootstrapRef.current = false;
             return;
         }
 
@@ -57,11 +81,46 @@ function Dashboard() {
                 }
             });
 
+            const formattedBudgets = Object.entries(data.budgets || {}).map(([firebaseKey, budget]) => ({
+                ...budget,
+                firebaseKey,
+            }));
+            const formattedAuditEntries = Object.values(data.auditLogs || {}).sort((left, right) => (
+                new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime()
+            ));
+
             setUserData(data.userData || {});
             setAccounts(formattedAccounts);
             setTransactions(data.transactions ? Object.values(data.transactions) : []);
+            setGoals(data.goals ? Object.values(data.goals) : []);
+            setBudgets(formattedBudgets);
+            setAuditEntries(formattedAuditEntries);
         });
     }, [user]);
+
+    const baseRole = useMemo(() => getNormalizedRole(userData.role || 'admin'), [userData.role]);
+    const activeRole = useMemo(() => getNormalizedRole(userData.activeRole || baseRole), [userData.activeRole, baseRole]);
+    const permissions = useMemo(() => getPermissionMap(activeRole), [activeRole]);
+
+    useEffect(() => {
+        if(!user){
+            return;
+        }
+
+        const needsBootstrap = !userData.role || !userData.activeRole || budgets.length === 0;
+        if(!needsBootstrap || governanceBootstrapRef.current){
+            return;
+        }
+
+        governanceBootstrapRef.current = true;
+        ensureWorkspaceGovernance({
+            userId: user.uid,
+            userData,
+            budgets,
+        }).finally(() => {
+            governanceBootstrapRef.current = false;
+        });
+    }, [user, userData, budgets]);
 
     const changeTheme = () => {
         setTheme(theme === "dark" ? "light" : "dark");
@@ -69,9 +128,17 @@ function Dashboard() {
 
     const setDate = () => {
         const today = new Date();
+        if(locale.startsWith('tr')){
+            return new Intl.DateTimeFormat(locale, {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            }).format(today);
+        }
+
         const day = today.getDate();
         const year = today.getFullYear();
-        const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(today);
+        const month = new Intl.DateTimeFormat(locale, { month: 'long' }).format(today);
         const mod10 = day % 10;
         const mod100 = day % 100;
         const suffix = mod10 === 1 && mod100 !== 11
@@ -85,114 +152,57 @@ function Dashboard() {
         return `${month} ${day}${suffix}, ${year}`;
     };
 
-    const formatMoney = (amount) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(Number(amount || 0));
-    };
+    const localSummary = useMemo(() => {
+        return buildFinancialSummary({
+            accounts,
+            transactions,
+            goals,
+            budgets,
+        }, { locale, t });
+    }, [accounts, transactions, goals, budgets, locale, t]);
 
-    const kpiCards = useMemo(() => {
-        const today = new Date();
-        const currentDay = today.getDate();
-        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-        const expenseTransactions = transactions.filter((transaction) => (
-            transaction &&
-            transaction.category !== 'Money In' &&
-            transaction.category !== 'Transfer' &&
-            transaction.category !== 'Credit Card Payment'
-        ));
-        const incomeTransactions = transactions.filter((transaction) => transaction && transaction.category === 'Money In');
+    useEffect(() => {
+        let isMounted = true;
 
-        const netLiquidity = accounts.reduce((sum, account) => sum + Number(account.total || 0), 0);
-        const totalExpenses = expenseTransactions.reduce((sum, transaction) => sum + Number(transaction.value || 0), 0);
-        const totalIncome = incomeTransactions.reduce((sum, transaction) => sum + Number(transaction.value || 0), 0);
-        const savingsEfficiency = totalIncome === 0 ? 0 : ((totalIncome - totalExpenses) / totalIncome) * 100;
-        const burnRate = currentDay === 0 ? 0 : (totalExpenses / currentDay) * daysInMonth;
-        const forecastedBalance = netLiquidity + (((totalIncome - totalExpenses) / Math.max(currentDay, 1)) * Math.max(daysInMonth - currentDay, 0));
+        if(!user){
+            return () => {
+                isMounted = false;
+            };
+        }
 
-        const dailyRows = Array.from({ length: Math.max(currentDay, 1) }, (_, index) => ({
-            day: index + 1,
-            income: 0,
-            expense: 0,
-        }));
+        if(!analyticsApiEnabled){
+            setRemoteSummary(null);
+            setSummarySource('Client-derived');
+            return () => {
+                isMounted = false;
+            };
+        }
 
-        transactions.forEach((transaction) => {
-            const transactionDay = Number(transaction?.date);
-            if(!transactionDay || transactionDay < 1 || transactionDay > dailyRows.length){
-                return;
+        fetchWorkspaceSummary({
+            accounts,
+            transactions,
+            goals,
+            budgets,
+        }).then((response) => {
+            if(isMounted){
+                setRemoteSummary(response);
+                setSummarySource('FastAPI summary');
             }
-
-            if(transaction.category === 'Money In'){
-                dailyRows[transactionDay - 1].income += Number(transaction.value || 0);
-            } else if(transaction.category !== 'Transfer' && transaction.category !== 'Credit Card Payment'){
-                dailyRows[transactionDay - 1].expense += Number(transaction.value || 0);
+        }).catch(() => {
+            if(isMounted){
+                setRemoteSummary(null);
+                setSummarySource('Client fallback');
             }
         });
 
-        let runningIncome = 0;
-        let runningExpense = 0;
-        const openingLiquidity = netLiquidity - (totalIncome - totalExpenses);
-        let runningLiquidity = openingLiquidity;
+        return () => {
+            isMounted = false;
+        };
+    }, [user, accounts, transactions, goals, budgets]);
 
-        const liquidityTrend = [];
-        const burnTrend = [];
-        const savingsTrend = [];
-        const forecastTrend = [];
-
-        dailyRows.forEach((row, index) => {
-            runningIncome += row.income;
-            runningExpense += row.expense;
-            runningLiquidity += row.income - row.expense;
-
-            const elapsedDays = index + 1;
-            const projectedBurn = (runningExpense / elapsedDays) * daysInMonth;
-            const runningEfficiency = runningIncome === 0 ? 0 : ((runningIncome - runningExpense) / runningIncome) * 100;
-            const projectedForecast = netLiquidity + (((runningIncome - runningExpense) / elapsedDays) * Math.max(daysInMonth - elapsedDays, 0));
-
-            liquidityTrend.push({ day: row.day, value: Number(runningLiquidity.toFixed(2)) });
-            burnTrend.push({ day: row.day, value: Number(projectedBurn.toFixed(2)) });
-            savingsTrend.push({ day: row.day, value: Number(runningEfficiency.toFixed(2)) });
-            forecastTrend.push({ day: row.day, value: Number(projectedForecast.toFixed(2)) });
-        });
-
-        return [
-            {
-                label: 'Net Liquidity',
-                value: formatMoney(netLiquidity),
-                badge: `${accounts.length} accounts`,
-                detail: 'Consolidated liquidity across active accounts and liabilities.',
-                tone: netLiquidity >= 0 ? 'positive' : 'negative',
-                sparkline: liquidityTrend.length ? liquidityTrend : [{ day: 1, value: 0 }],
-            },
-            {
-                label: 'Burn Rate',
-                value: formatMoney(burnRate),
-                badge: 'Monthly pace',
-                detail: 'Projected monthly expense velocity based on current cycle spend.',
-                tone: totalIncome >= burnRate ? 'neutral' : 'negative',
-                sparkline: burnTrend.length ? burnTrend : [{ day: 1, value: 0 }],
-            },
-            {
-                label: 'Savings Efficiency',
-                value: `${savingsEfficiency.toFixed(1)}%`,
-                badge: 'Income conversion',
-                detail: 'Share of income retained after core operational expenses.',
-                tone: savingsEfficiency >= 20 ? 'positive' : 'negative',
-                sparkline: savingsTrend.length ? savingsTrend : [{ day: 1, value: 0 }],
-            },
-            {
-                label: 'Forecasted Balance',
-                value: formatMoney(forecastedBalance),
-                badge: 'Month-end view',
-                detail: 'Forward-looking balance estimate at the current daily cashflow pace.',
-                tone: forecastedBalance >= 0 ? 'positive' : 'negative',
-                sparkline: forecastTrend.length ? forecastTrend : [{ day: 1, value: 0 }],
-            }
-        ];
-    }, [accounts, transactions]);
+    const summary = locale.startsWith('tr') ? localSummary : (remoteSummary || localSummary);
+    const translatedSummarySource = t(getSummarySourceKey(summarySource));
+    const activeRoleLabel = t(getRoleKey(activeRole));
 
     const toSetShowNavOn = () => {
         setShowNav(true);
@@ -398,7 +408,8 @@ function Dashboard() {
                             changeTheme={changeTheme} 
                             showNav={showNav} 
                             buttonStyles={buttonStyles} 
-                            toSetShowNavOff={toSetShowNavOff}/>
+                            toSetShowNavOff={toSetShowNavOff}
+                            activeRole={activeRole}/>
                         <div className="min-h-screen md:pl-[88px]">
                             <header id="overview" className="sticky top-0 z-30 border-b border-slate-200/80 bg-slate-100/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
                                 <div className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-4 px-5 py-5 md:px-6 lg:px-8 2xl:max-w-[1400px]">
@@ -410,7 +421,7 @@ function Dashboard() {
                                             aria-expanded={showNav ? 'true' : 'false'} 
                                             aria-controls="navsidebar" 
                                             id='navcontrol' 
-                                            aria-label="Expand Navigation" 
+                                            aria-label={t('nav.expandNavigation')} 
                                             tabIndex={showNav ? -1 : 0}
                                             className="md:!hidden">
                                             <MenuIcon/>
@@ -420,37 +431,53 @@ function Dashboard() {
                                                 FinSight
                                             </span>
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <h1 className="text-lg font-semibold md:text-2xl">Financial Analytics & GRC</h1>
-                                                <span className="enterprise-header-chip">Governance-ready</span>
+                                                <h1 className="text-lg font-semibold md:text-2xl">{t('dashboard.title')}</h1>
+                                                <span className="enterprise-header-chip">{t('dashboard.governanceReady')}</span>
+                                                <span className="enterprise-header-chip">{`${activeRoleLabel} ${t('dashboard.roleSuffix')}`}</span>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-zinc-400">
                                                 <span data-testid="dashboardUserName" className="font-medium text-slate-900 dark:text-slate-100">
-                                                    FinSight Strategic Analytics
+                                                    {t('dashboard.workspaceTitle')}
                                                 </span>
                                                 <span className="hidden h-1 w-1 rounded-full bg-slate-300 dark:bg-zinc-700 sm:block"></span>
                                                 <time data-testid="dashboardDate">{setDate()}</time>
+                                                <span className="hidden h-1 w-1 rounded-full bg-slate-300 dark:bg-zinc-700 sm:block"></span>
+                                                <span>{translatedSummarySource}</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="hidden items-center gap-2 lg:flex">
-                                        <span className="enterprise-header-chip">Controls Monitoring</span>
-                                        <span className="enterprise-header-chip">Risk Oversight</span>
-                                        <span className="enterprise-header-chip">Executive Dashboard</span>
+                                        <LanguageToggle
+                                            hideLabel
+                                            buttonStyles={buttonStyles}
+                                            className="mr-1"
+                                        />
+                                        <span className="enterprise-header-chip">{t('dashboard.controlsMonitoring')}</span>
+                                        <span className="enterprise-header-chip">
+                                            {summary.governance.plannedBudget > 0
+                                                ? t('dashboard.budgetUse', { rate: formatPercent(summary.governance.budgetAdherenceRate, 1, locale) })
+                                                : t('dashboard.budgetPending')}
+                                        </span>
+                                        <span className="enterprise-header-chip">{t('dashboard.overspendAlerts', { count: summary.governance.overBudgetCount })}</span>
                                     </div>
                                 </div>
                             </header>
                             <main className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-6 p-6 sm:gap-6 xl:grid-cols-12 xl:auto-rows-auto xl:gap-6">
-                                <ExecutiveKpiCards cards={kpiCards}/>
+                                <ExecutiveKpiCards cards={summary.cards}/>
                                 <AccountsModal 
                                     showNav={showNav} 
                                     theme={theme} 
                                     buttonStyles={buttonStyles} 
-                                    inputStyles={inputStyles}/>
+                                    inputStyles={inputStyles}
+                                    permissions={permissions}
+                                    baseRole={baseRole}/>
                                 <GoalsModal 
                                     showNav={showNav} 
                                     theme={theme} 
                                     buttonStyles={buttonStyles} 
-                                    inputStyles={inputStyles}/>
+                                    inputStyles={inputStyles}
+                                    permissions={permissions}
+                                    baseRole={baseRole}/>
                                 <SpendingModal 
                                     showNav={showNav} 
                                     theme={theme}/>
@@ -458,8 +485,30 @@ function Dashboard() {
                                     showNav={showNav} 
                                     theme={theme} 
                                     buttonStyles={buttonStyles} 
-                                    inputStyles={inputStyles}/>
+                                    inputStyles={inputStyles}
+                                    permissions={permissions}
+                                    baseRole={baseRole}/>
+                                <BudgetPerformancePanel
+                                    theme={theme}
+                                    buttonStyles={buttonStyles}
+                                    inputStyles={inputStyles}
+                                    userId={user.uid}
+                                    baseRole={baseRole}
+                                    permissions={permissions}
+                                    budgets={budgets}
+                                    summary={summary}
+                                    summarySource={translatedSummarySource}/>
+                                <AccessControlPanel
+                                    userId={user.uid}
+                                    baseRole={baseRole}
+                                    activeRole={activeRole}
+                                    buttonStyles={buttonStyles}
+                                    summarySource={translatedSummarySource}/>
                                 <AnalyticsModal theme={theme}/>
+                                <AuditLogPanel
+                                    auditEntries={auditEntries}
+                                    permissions={permissions}
+                                    buttonStyles={buttonStyles}/>
                             </main>  
                         </div>
                     </div>

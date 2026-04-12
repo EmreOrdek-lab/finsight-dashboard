@@ -9,8 +9,11 @@ import EditDialogBox from '../EditDialogBox';
 import SuccessSnackbar from '../SuccessSnackbar';
 import ErrorSnackbar from '../ErrorSnackbar';
 import DeleteSnackbar from '../DeleteSnackbar';
+import { appendAuditEntry } from '../../services/auditService';
+import { useLanguage } from '../../context/LanguageContext';
 
 function TransactionsModal(props) {
+    const { t } = useLanguage();
     const [ user ] = useAuthState(auth);
     // Represents all transactions, read from database
     const [ allTransactions, setAllTransactions ] = useState([]);
@@ -24,6 +27,7 @@ function TransactionsModal(props) {
     const [ deleteSnackbarOn, setDeleteSnackbarOn ] = useState(false);
     const [ dialogBoxOn, setDialogBoxOn ] = useState(false);
     const [ exitWithCancelOn, setExitWithCancelOn ] = useState(false);
+    const canManageTransactions = props.permissions?.manageTransactions;
 
     const toSetFormOn = () => {
         setFormOn(true);
@@ -35,11 +39,14 @@ function TransactionsModal(props) {
     };
 
     const toSetModalOn = () => {
+        if(!canManageTransactions){
+            return;
+        }
         setModalOn(true);
         window.scroll(0, 0);
         const body = document.querySelector("body");
         body.style.overflow = "hidden";
-    }
+    };
 
     const toSetModalOff = () => {
         setExitWithCancelOn(false);
@@ -125,6 +132,9 @@ function TransactionsModal(props) {
     };
 
     const createTransaction = (newTransaction) =>{
+        if(!canManageTransactions){
+            return;
+        }
         const db = getDatabase();
         const dbTransactionRef = ref(db, user.uid + '/transactions');
         const newTransactionPostRef = push(dbTransactionRef);
@@ -133,6 +143,14 @@ function TransactionsModal(props) {
         })
         .then(() => {
             setSuccessSnackbarOn(true);
+            appendAuditEntry(user.uid, {
+                action: editOn ? 'updated' : 'created',
+                domain: 'transactions',
+                entityType: 'transaction',
+                actorRole: props.baseRole,
+                summary: `${newTransaction.name} transaction ${editOn ? 'updated' : 'created'} for ${newTransaction.account}.`,
+                severity: 'info',
+            });
         })
         .catch(() => {
             setErrorSnackbarOn(true);
@@ -141,6 +159,9 @@ function TransactionsModal(props) {
     };
 
     const deleteTransaction = (transacitonToDelete, index, editOnTrue) => {
+        if(!canManageTransactions){
+            return;
+        }
         const idToDel = transacitonToDelete.id;
         const db = getDatabase();
         const dbRef = ref(db, user.uid + '/transactions');
@@ -156,6 +177,14 @@ function TransactionsModal(props) {
                         .then(() => {
                             if(!editOnTrue){
                                 setDeleteSnackbarOn(true);
+                                appendAuditEntry(user.uid, {
+                                    action: 'deleted',
+                                    domain: 'transactions',
+                                    entityType: 'transaction',
+                                    actorRole: props.baseRole,
+                                    summary: `${transacitonToDelete.name} transaction removed.`,
+                                    severity: 'warning',
+                                });
                             }
                         })
                         .catch(() => {
@@ -205,14 +234,20 @@ function TransactionsModal(props) {
         <section id="transactions" className="w-full order-2 xl:col-span-4 xl:col-start-4 xl:row-span-2 xl:row-start-1 xl:w-full">
             <div className="enterprise-panel m-0 flex min-h-0 w-full flex-col gap-3 overflow-hidden bg-slate-900/50 p-6 shadow-xl">
                 <header className="flex justify-between">
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Transactions</h2>
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('transactions.title')}</h2>
                     <Button sx={props.buttonStyles} 
                         onClick={() => toSetModalOn()} 
+                        disabled={!canManageTransactions}
                         tabIndex={props.showNav || modalOn ? -1 : 0}
                         data-testid="transactionsModalOpen">
-                        Manage Transactions
+                        {t('transactions.manage')}
                     </Button>
                 </header>
+                {!canManageTransactions && (
+                    <div className="text-sm text-slate-600 dark:text-zinc-400">
+                        {t('transactions.readOnly')}
+                    </div>
+                )}
                 <Transactions 
                     allTransactions={allTransactions}
                     toSetAllTransactions={toSetAllTransactions}
@@ -221,15 +256,15 @@ function TransactionsModal(props) {
             {modalOn && 
                 <div className="enterprise-overlay fixed inset-0 z-50 flex flex-col items-center justify-center p-3">
                     <DeleteSnackbar
-                        message='Transaction deleted.'
+                        message={t('transactions.deleted')}
                         deleteSnackbarOn={deleteSnackbarOn}
                         toSetDeleteSnackbarOff={toSetDeleteSnackbarOff}/>
                     <ErrorSnackbar
-                        message='Error with transaction.'
+                        message={t('transactions.error')}
                         errorSnackbarOn={errorSnackbarOn}
                         toSetErrorSnackbarOff={toSetErrorSnackbarOff}/>
                     <SuccessSnackbar
-                        message='Transaction created!' 
+                        message={t('transactions.created')} 
                         successSnackbarOn={successSnackbarOn} 
                         toSetSuccessSnackbarOff={toSetSuccessSnackbarOff}/>
                     <EditDialogBox 
@@ -238,17 +273,17 @@ function TransactionsModal(props) {
                         dialogBoxOn={dialogBoxOn}
                         toSetDialogBoxOff={toSetDialogBoxOff}
                         toSetDialogBoxOffAndClearGoal={exitWithCancelOn ? exitDialogWithCancel : exitDialogWithX} 
-                        dialogTitle="Exit while editing your transaction?"
-                        dialogText="Exiting now will cause the transaction you are editing to be lost."/>
+                        dialogTitle={t('transactions.exitWhileEditing')}
+                        dialogText={t('transactions.exitWhileEditingText')}/>
                     <article className="enterprise-modal-panel container h-[37rem] w-full p-4 sm:max-h-[98vh] md:w-11/12 md:max-h-[60%] lg:max-h-[85%] xl:max-w-[50%]">
                         <header className="flex justify-between">
-                            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Transactions</h2>
+                            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('transactions.title')}</h2>
                             <Button onClick={() => toSetModalOff()}
                                 className="btn" 
                                 size="small" 
                                 sx={props.buttonStyles}
                                 data-testid="transactionsModalClose">
-                                Exit
+                                {t('common.exit')}
                             </Button>
                         </header>
                         <div className="flex gap-2 mt-2 h-5/6 m-auto justify-center md:w-11/12 md:gap-3 xl:gap-10">

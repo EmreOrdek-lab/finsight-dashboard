@@ -1,7 +1,9 @@
 import React, { useCallback } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Sector, Cell } from "recharts";
+import { useLanguage } from '../../context/LanguageContext';
 
 function Spending(props) {
+    const { t } = useLanguage();
     const onMouseOver = useCallback((data, index) => {
       props.toSetCurrentCategory(index);
     }, []); // eslint-disable-line
@@ -41,7 +43,7 @@ function Spending(props) {
     };
 
     return (
-        <figure data-testid="spendingGraph" className="mx-auto h-[300px] w-full max-w-[360px]" aria-label='Spending Categories Pie Chart'>
+        <figure data-testid="spendingGraph" className="mx-auto h-[300px] w-full max-w-[360px]" aria-label={t('spending.pieChartAria')}>
            <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie

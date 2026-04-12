@@ -1,4 +1,4 @@
-function validateAccount(values, otherAccounts) {
+function validateAccount(values, otherAccounts, t = (key) => key) {
     const errors = {}; 
 
     let accountNames = [];
@@ -6,17 +6,17 @@ function validateAccount(values, otherAccounts) {
         accountNames.push(account.name);
     })
     if(accountNames.includes(values.name)){
-        errors.name = 'Name must be unique'
+        errors.name = t('accounts.validation.unique');
     }
     if(!values.name || values.name.trim().length === 0){
-        errors.name = 'Name required';
+        errors.name = t('accounts.validation.nameRequired');
     }
     if(values.name.length > 12){
-        errors.name = 'Name cannot exceed 12 characters';
+        errors.name = t('accounts.validation.maxLength');
     }
 
     if(values.debit === undefined){
-        errors.debit = 'Type required';
+        errors.debit = t('accounts.validation.typeRequired');
     }
     return errors;
 }

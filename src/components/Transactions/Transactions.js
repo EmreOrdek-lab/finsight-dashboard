@@ -5,8 +5,11 @@ import { auth } from '../../config/Firebase';
 import Button from '@mui/material/Button';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatMoney } from '../../utils/formatters';
 
 function Transactions(props) {
+    const { t, locale } = useLanguage();
     const [ user ] = useAuthState(auth);
     const [ count, setCount ] = useState(0);
     const actionButtonSx = {
@@ -59,19 +62,17 @@ function Transactions(props) {
     };
 
     const formatDate = (date) => {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const currentMonth = months[new Date().getMonth()];
-        return `${currentMonth} ${date}`;
+        const currentDate = new Date();
+        currentDate.setDate(Number(date || 1));
+        return new Intl.DateTimeFormat(locale, {
+            month: 'short',
+            day: 'numeric',
+        }).format(currentDate);
     };
 
-    const formatMoney = (money, transaction) => {
+    const formatTransactionMoney = (money, transaction) => {
         const sign = transaction.category === 'Transfer' ? '' : (transaction.positive ? '+' : '-');
-        return `${sign}${new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(Number(money || 0))}`;
+        return `${sign}${formatMoney(money, 'USD', locale)}`;
     };
 
     const getTransactionTone = (transaction) => {
@@ -90,7 +91,7 @@ function Transactions(props) {
                             <div className="min-w-0">
                                 <h3 className={`truncate text-xs font-semibold uppercase tracking-[0.14em] ${getTransactionTone(item)}`}>{item.name}</h3>
                                 <div className="truncate pt-1 text-[11px] text-slate-600 dark:text-zinc-400">
-                                    {item.transferTo ? `Transfer to ${item.transferTo}` : item.category}
+                                    {item.transferTo ? t('transactions.transferToPrefix', { account: item.transferTo }) : item.category}
                                 </div>
                             </div>
                             <div className="text-[11px] font-medium text-slate-500 dark:text-zinc-500 md:text-center">
@@ -98,10 +99,10 @@ function Transactions(props) {
                             </div>
                             <div className="min-w-0 text-left md:text-right">
                                 <div className={`text-sm font-semibold tabular-nums md:text-[15px] ${getTransactionTone(item)}`}>
-                                    {formatMoney(item.value, item)}
+                                    {formatTransactionMoney(item.value, item)}
                                 </div>
                                 <div className="truncate pt-1 text-[11px] text-slate-600 dark:text-zinc-400">
-                                    {item.transferTo ? `From ${item.account}` : item.account}
+                                    {item.transferTo ? t('transactions.fromPrefix', { account: item.account }) : item.account}
                                 </div>
                             </div>
                         </div>
@@ -141,7 +142,7 @@ function Transactions(props) {
                 
             // case for 0 transactions
             default:
-                return <div className='m-auto text-center font-medium text-slate-600 dark:text-zinc-400'>Transaction list empty{!props.modalOn && ', add a goal in Manage Transactions'}</div>;
+                return <div className='m-auto text-center font-medium text-slate-600 dark:text-zinc-400'>{`${t('transactions.empty')}${!props.modalOn ? `, ${t('transactions.emptyHint')}` : ''}`}</div>;
         }
     };
 

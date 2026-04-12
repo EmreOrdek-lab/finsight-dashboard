@@ -4,8 +4,10 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import capitalizeName from '../capitalizeName';
 import validateAccount from './validateAccount';
+import { useLanguage } from '../../context/LanguageContext';
 
 function AccountsForm(props) {
+    const { t } = useLanguage();
     const initialValues = { name: "", total: 0, debit: undefined, id:Math.random()*1000 };
     const [ formValues, setFormValues ] = useState(initialValues);
     const [ formErrors, setFormErrors ] = useState(null);
@@ -30,7 +32,7 @@ function AccountsForm(props) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const errors = validateAccount(formValues, props.allAccounts);
+        const errors = validateAccount(formValues, props.allAccounts, t);
         // If there are no errors, send transaction to database
         if(Object.keys(errors).length === 0){
             props.createAccount(formValues);
@@ -91,12 +93,12 @@ function AccountsForm(props) {
         return(
             <form onSubmit={handleSubmit} className="flex flex-col gap-1 md:gap-4">
                 <h3 className="text-center font-medium text-slate-900 dark:text-slate-100">
-                    Create your Account
+                    {t('accounts.createForm')}
                 </h3>
                 <div className="flex w-fit gap-3 m-auto justify-center xl:flex-col xl:gap-4">
                     <TextField
                         id="filled-basic" 
-                        label="Account Name" 
+                        label={t('accounts.accountName')} 
                         variant="filled"
                         sx={props.inputStyles}
                         data-testid="accountsFormName"
@@ -117,7 +119,11 @@ function AccountsForm(props) {
                         size="small"
                         id="combo-box-demo"
                         options={accountTypes}
-                        renderInput={(params) => <TextField {...params} label="Account Type" 
+                        getOptionLabel={(option) => {
+                            const rawValue = typeof option === 'string' ? option : option?.label;
+                            return rawValue ? t(`accounts.${rawValue.toLowerCase()}`) : '';
+                        }}
+                        renderInput={(params) => <TextField {...params} label={t('accounts.accountType')} 
                                                     name="debit" 
                                                     error={formErrors?.debit ? true : false} 
                                                     helperText={formErrors?.debit}/>}
@@ -126,11 +132,11 @@ function AccountsForm(props) {
                 <div className="flex justify-center gap-2 md:gap-4 md:w-3/5 md:m-auto">
                     <Button sx={props.buttonStyles} type="submit" onClick={() => giveId()}
                         data-testid="accountsFormSubmit">
-                        Create
+                        {t('common.create')}
                     </Button>
                     <Button sx={props.buttonStyles} onClick={() => toSetFormOff()}
                         data-testid="accountsFormClose">
-                        Cancel
+                        {t('common.cancel')}
                     </Button>
                 </div>
             </form>
@@ -142,12 +148,12 @@ function AccountsForm(props) {
             {props.formOn === true ? accountsForm() :
                 <header className="flex flex-col text-center m-auto">
                     <h3 className="font-medium text-slate-900 dark:text-slate-100">
-                        Edit, Delete or
+                        {t('accounts.editDeleteOr')}
                     </h3>
                     <Button sx={props.buttonStyles} 
                         onClick={() => toSetFormOn()}
                         data-testid="accountsFormOpen">
-                        Create new account +
+                        {t('accounts.createNew')}
                     </Button>
                 </header>
             }

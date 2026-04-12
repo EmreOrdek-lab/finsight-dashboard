@@ -1,49 +1,49 @@
-function validateTransaction(values, CCTotal) {
+function validateTransaction(values, CCTotal, t = (key, params) => key) {
     let monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     let currentMonth = monthDays[new Date().getMonth()];
 
     const errors = {};
 
     if(values.name.length > 10){
-        errors.name = 'Title cannot exceed 10 characters';
+        errors.name = t('transactions.validation.titleMax');
     }
     if(!values.name || values.name.trim().length === 0){
-        errors.name = 'Title required';
+        errors.name = t('transactions.validation.titleRequired');
     }
 
     if(!values.account){
-        errors.account = 'Account required';
+        errors.account = t('transactions.validation.accountRequired');
     }
 
     if(!values.category){
-        errors.category = 'Category required';
+        errors.category = t('transactions.validation.categoryRequired');
     }
 
     if( isNaN(values.date) || values.date < 1 || values.date > currentMonth || values.date % 1 === '1'){
-        errors.date = `Date must be a whole number between 1 and ${currentMonth}`;
+        errors.date = t('transactions.validation.dateRange', { day: currentMonth });
     }
     if(!values.date){
-        errors.date = 'Date required';
+        errors.date = t('transactions.validation.dateRequired');
     }
 
     if(CCTotal && (parseFloat(values.value) > ( -1 * parseFloat(CCTotal)))){
-        errors.value = 'Payment cannot be more than that accounts total';
+        errors.value = t('transactions.validation.paymentTooLarge');
     }
     if( values.value > 9999999.99){
-        errors.value = 'Value cannot exceed $9,999,999.99';
+        errors.value = t('transactions.validation.valueMax');
     }
     if(isNaN(values.value)){
-        errors.value = "Value must be a number";
+        errors.value = t('transactions.validation.valueNumber');
     }
     if(values.value <= 0){
-        errors.value = 'Value must be positive';
+        errors.value = t('transactions.validation.valuePositive');
     }
     if(!values.value){
-        errors.value = 'Value required';
+        errors.value = t('transactions.validation.valueRequired');
     }
 
     if(values.category === 'Transfer' && typeof values.transferTo === 'object'){
-        errors.transferTo = 'Transfer account required';
+        errors.transferTo = t('transactions.validation.transferRequired');
     }
     return errors;
 }
