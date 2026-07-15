@@ -17,6 +17,11 @@ It combines a simple personal-finance data model with an enterprise-style interf
 <br/>
 </p>
 
+<p align="center">
+  <img src="./public/ai analyz.png" width="900" alt="FinSight AI Analysis View">
+<br/>
+</p>
+
 ## What This Project Does
 
 FinSight helps a signed-in user:
