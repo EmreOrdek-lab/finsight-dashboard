@@ -26,6 +26,8 @@ devserver.log
 # Python cache
 __pycache__/
 *.pyc
+backend/.venv/
+backend/.env
 pnpm-debug.log*
 
 # OS/Editor

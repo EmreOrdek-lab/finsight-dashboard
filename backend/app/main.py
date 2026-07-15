@@ -1,13 +1,21 @@
+import json
+import os
 from calendar import monthrange
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from openai import OpenAI
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 
 EXCLUDED_EXPENSE_CATEGORIES = {"Money In", "Transfer", "Credit Card Payment"}
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.6")
+OPENAI_TIMEOUT_SECONDS = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "30"))
 
 
 class Account(BaseModel):
@@ -43,6 +51,11 @@ class WorkspacePayload(BaseModel):
     budgets: List[Budget] = Field(default_factory=list)
 
 
+class AiAnalysisRequest(WorkspacePayload):
+    question: str = Field(default="", min_length=1)
+    locale: str = "en-US"
+
+
 app = FastAPI(title="FinSight Analytics API", version="0.1.0")
 
 app.add_middleware(
@@ -52,6 +65,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_openai_client: OpenAI | None = None
 
 
 def format_money(amount: float) -> str:
@@ -76,6 +91,20 @@ def build_daily_rows(transactions: List[Transaction], current_day: int) -> List[
         elif transaction.category not in EXCLUDED_EXPENSE_CATEGORIES:
             rows[transaction.date - 1]["expense"] += transaction.value
     return rows
+
+
+def get_openai_client() -> OpenAI:
+    global _openai_client
+
+    if _openai_client is not None:
+        return _openai_client
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured on the backend.")
+
+    _openai_client = OpenAI(api_key=api_key, timeout=OPENAI_TIMEOUT_SECONDS)
+    return _openai_client
 
 
 def build_summary(payload: WorkspacePayload) -> Dict[str, Any]:
@@ -245,11 +274,148 @@ def build_summary(payload: WorkspacePayload) -> Dict[str, Any]:
     }
 
 
+def build_ai_context(payload: WorkspacePayload) -> Dict[str, Any]:
+    summary = build_summary(payload)
+    expense_transactions = [item for item in payload.transactions if item.category not in EXCLUDED_EXPENSE_CATEGORIES]
+    income_transactions = [item for item in payload.transactions if item.category == "Money In"]
+
+    spend_by_category: Dict[str, float] = {}
+    for transaction in expense_transactions:
+        category = transaction.category or "Unassigned"
+        spend_by_category[category] = spend_by_category.get(category, 0) + transaction.value
+
+    top_spend_categories = [
+        {"category": category, "amount": round(amount, 2)}
+        for category, amount in sorted(spend_by_category.items(), key=lambda item: item[1], reverse=True)[:5]
+    ]
+
+    largest_expenses = [
+        {
+            "name": transaction.name or "Unnamed expense",
+            "category": transaction.category or "Unassigned",
+            "amount": round(transaction.value, 2),
+            "day": transaction.date,
+        }
+        for transaction in sorted(expense_transactions, key=lambda item: item.value, reverse=True)[:5]
+    ]
+
+    largest_income = [
+        {
+            "name": transaction.name or "Unnamed income",
+            "amount": round(transaction.value, 2),
+            "day": transaction.date,
+        }
+        for transaction in sorted(income_transactions, key=lambda item: item.value, reverse=True)[:3]
+    ]
+
+    at_risk_goals = [
+        {
+            "name": goal.name or "Unnamed goal",
+            "current": round(goal.current, 2),
+            "target": round(goal.total, 2),
+            "fundedPercent": round((goal.current / goal.total) * 100, 1),
+        }
+        for goal in payload.goals
+        if goal.total > 0 and (goal.current / goal.total) * 100 < 40
+    ]
+
+    budget_alerts = [
+        {
+            "category": row["category"],
+            "status": row["status"],
+            "planned": round(row["planned"], 2),
+            "actual": round(row["actual"], 2),
+            "variance": round(row["variance"], 2),
+            "utilization": round(row["utilization"], 1),
+            "owner": row["owner"],
+            "criticality": row["criticality"],
+        }
+        for row in summary["budgetRows"]
+        if row["status"] != "On track"
+    ][:6]
+
+    return {
+        "workspace": {
+            "accountCount": len(payload.accounts),
+            "transactionCount": len(payload.transactions),
+            "goalCount": len(payload.goals),
+            "budgetCount": len(payload.budgets),
+        },
+        "summary": summary["governance"],
+        "cards": summary["cards"],
+        "insights": summary["insights"],
+        "topSpendCategories": top_spend_categories,
+        "largestExpenses": largest_expenses,
+        "largestIncome": largest_income,
+        "budgetAlerts": budget_alerts,
+        "goalsAtRisk": at_risk_goals,
+    }
+
+
+def build_ai_instructions(locale: str) -> str:
+    language = "Turkish" if locale.lower().startswith("tr") else "English"
+    return (
+        "You are FinSight AI, a financial analytics copilot for managers and finance operators. "
+        f"Respond in {language}. "
+        "Use only the supplied workspace data. Do not invent facts, transactions, people, or forecasts beyond the provided metrics. "
+        "If the data is insufficient, say so clearly. "
+        "Keep the answer concise and executive-friendly. "
+        "Structure the response with these headings exactly: "
+        "Headline, Assessment, Risks, Recommended actions."
+    )
+
+
+def generate_ai_analysis(request: AiAnalysisRequest) -> Dict[str, str]:
+    client = get_openai_client()
+    context = build_ai_context(
+        WorkspacePayload(
+            accounts=request.accounts,
+            transactions=request.transactions,
+            goals=request.goals,
+            budgets=request.budgets,
+        )
+    )
+
+    prompt_payload = {
+        "user_question": request.question.strip(),
+        "workspace_context": context,
+    }
+
+    try:
+        response = client.responses.create(
+            model=DEFAULT_OPENAI_MODEL,
+            instructions=build_ai_instructions(request.locale),
+            input=json.dumps(prompt_payload, ensure_ascii=False),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"OpenAI request failed: {exc}") from exc
+
+    answer = (response.output_text or "").strip()
+    if not answer:
+        raise HTTPException(status_code=502, detail="OpenAI returned an empty analysis.")
+
+    return {
+        "answer": answer,
+        "model": DEFAULT_OPENAI_MODEL,
+    }
+
+
 @app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "ok"}
+def health() -> Dict[str, Any]:
+    return {
+        "status": "ok",
+        "aiConfigured": bool(os.getenv("OPENAI_API_KEY")),
+        "model": DEFAULT_OPENAI_MODEL,
+    }
 
 
 @app.post("/api/v1/summary")
 def summary(payload: WorkspacePayload) -> Dict[str, Any]:
     return build_summary(payload)
+
+
+@app.post("/api/v1/ai-analysis")
+def ai_analysis(payload: AiAnalysisRequest) -> Dict[str, str]:
+    return generate_ai_analysis(payload)

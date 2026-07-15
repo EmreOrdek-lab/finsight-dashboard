@@ -13,6 +13,7 @@ import ExecutiveKpiCards from './ExecutiveKpiCards';
 import BudgetPerformancePanel from './BudgetPerformancePanel';
 import AccessControlPanel from './AccessControlPanel';
 import AuditLogPanel from './AuditLogPanel';
+import AiInsightsPanel from './AiInsightsPanel';
 import IconButton from '@mui/material/IconButton';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -503,6 +504,14 @@ function Dashboard() {
                                     baseRole={baseRole}
                                     activeRole={activeRole}
                                     buttonStyles={buttonStyles}
+                                    summarySource={translatedSummarySource}/>
+                                <AiInsightsPanel
+                                    accounts={accounts}
+                                    transactions={transactions}
+                                    goals={goals}
+                                    budgets={budgets}
+                                    buttonStyles={buttonStyles}
+                                    inputStyles={inputStyles}
                                     summarySource={translatedSummarySource}/>
                                 <AnalyticsModal theme={theme}/>
                                 <AuditLogPanel

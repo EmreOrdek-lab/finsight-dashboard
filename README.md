@@ -40,6 +40,7 @@ In short, this project turns raw financial activity into an interactive dashboar
 - Transaction creation, editing, deletion, and account balance reflection
 - Spending breakdown by category
 - Analytics section for cashflow, net worth, and insight messaging
+- AI analysis panel that answers natural-language questions about KPI posture
 - Budget vs actual governance panel with variance tracking
 - Role-aware workspace controls for admin, analyst, and viewer modes
 - Audit log timeline for traceable create, update, delete, and access events
@@ -63,6 +64,7 @@ The application is a React single-page app created with `react-scripts`.
 - `Firebase Authentication` handles login and registration
 - `Firebase Realtime Database` stores user-scoped data under each authenticated user's UID
 - Optional `FastAPI` service can compute executive summaries server-side when `REACT_APP_ANALYTICS_API_URL` is configured
+- The same FastAPI service can call the OpenAI Responses API for natural-language financial commentary when `OPENAI_API_KEY` is configured on the backend
 
 ### Data Model
 
@@ -161,9 +163,18 @@ REACT_APP_FIREBASE_STORAGE_BUCKET=...
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=...
 REACT_APP_FIREBASE_APP_ID=...
 REACT_APP_FIREBASE_MEASUREMENT_ID=...
+REACT_APP_ANALYTICS_API_URL=http://localhost:8000
 ```
 
 Your variables must start with `REACT_APP_` for Create React App to inject them at build time.
+
+For the optional backend AI layer, set these variables where the FastAPI server runs:
+
+```
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.6
+OPENAI_TIMEOUT_SECONDS=30
+```
 
 ## Test Stack
 
@@ -179,6 +190,7 @@ Your variables must start with `REACT_APP_` for Create React App to inject them 
 - Firebase Auth
 - Firebase Realtime Database
 - Recharts
+- OpenAI API
 - Cypress
 
 ## Brand Positioning
@@ -194,6 +206,7 @@ That positioning gives the app a more professional and executive-facing identity
 - The project currently uses Firebase directly from the frontend.
 - User data is scoped by authenticated UID.
 - Analytics are calculated client-side from stored transactional data.
+- Optional backend AI analysis uses the OpenAI Responses API and keeps the API key server-side.
 - Governance bootstrap provisions default roles and category budgets for new workspaces.
 - Audit events are written for account, goal, transaction, budget, and access changes.
 - A live Firebase project configuration is present in the app configuration.
